@@ -3,13 +3,9 @@
 ##############################
 FROM python:3.11-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy dependency file
 COPY requirements.txt .
-
-# Install dependencies (optimized for caching)
 RUN pip install --no-cache-dir -r requirements.txt
 
 
@@ -18,10 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 ##############################
 FROM python:3.11-slim
 
-# Set timezone to UTC (critical!)
 ENV TZ=UTC
-
-# Set working directory
 WORKDIR /app
 
 ##############################
@@ -31,17 +24,12 @@ RUN apt-get update && \
     apt-get install -y cron tzdata && \
     rm -rf /var/lib/apt/lists/*
 
-##############################
-# Configure timezone
-##############################
 RUN ln -fs /usr/share/zoneinfo/UTC /etc/localtime && dpkg-reconfigure -f noninteractive tzdata
-
 
 ##############################
 # Copy dependencies from builder
 ##############################
 COPY --from=builder /usr/local /usr/local
-
 
 ##############################
 # Copy application code
@@ -49,19 +37,18 @@ COPY --from=builder /usr/local /usr/local
 COPY . .
 
 ##############################
-# Setup cron job (if needed)
+# Install cron job file
 ##############################
-# Create cron directory
-RUN mkdir -p /cron
-RUN mkdir -p /data
-
-# Set permissions
-RUN chmod -R 755 /data
-RUN chmod -R 755 /cron
+COPY cron/2fa-cron /etc/cron.d/2fa-cron
+RUN chmod 0644 /etc/cron.d/2fa-cron
+RUN crontab /etc/cron.d/2fa-cron
 
 ##############################
-# Expose API port
+# Create necessary directories
 ##############################
+RUN mkdir -p /cron && mkdir -p /data
+RUN chmod -R 755 /cron && chmod -R 755 /data
+
 EXPOSE 8080
 
 ##############################
